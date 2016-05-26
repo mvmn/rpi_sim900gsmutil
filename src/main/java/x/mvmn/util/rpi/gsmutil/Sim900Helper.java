@@ -98,15 +98,15 @@ public class Sim900Helper {
 	public boolean ensureOn() {
 		boolean result = false;
 		cmdAT();
-		ThreadHelper.ensuredSleep(1000);
+		ThreadHelper.ensuredSleep(3000);
 		String line = pollResponses();
 		if (line == null) {
 			toggleOnOff();
 			cmdAT();
-			ThreadHelper.ensuredSleep(1000);
+			ThreadHelper.ensuredSleep(3000);
 			line = pollResponses();
 		}
-		if (line.equalsIgnoreCase("AT") && pollResponses().equalsIgnoreCase("OK")) {
+		if (line.replaceAll("[\n\r]", "").trim().equals("AT OK")) {
 			result = true;
 		}
 		return result;
