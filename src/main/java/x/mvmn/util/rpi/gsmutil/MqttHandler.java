@@ -144,10 +144,6 @@ public class MqttHandler {
 		}
 	}
 
-	protected void onMessageArrived(final String topic, final MqttMessage message) {
-
-	}
-
 	public int getConnectionRetryIntervalSeconds() {
 		return connectionRetryIntervalSeconds;
 	}
