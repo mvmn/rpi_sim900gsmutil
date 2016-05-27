@@ -15,6 +15,7 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 
 public class MqttHandler {
 
@@ -71,13 +72,20 @@ public class MqttHandler {
 		}
 		if (password != null && password.length > 0) {
 			try {
-				options.setUserName(new String(password, "UTF-8"));
+				options.setPassword(new String(password, "UTF-8").toCharArray());
 			} catch (UnsupportedEncodingException e) {
 				throw new RuntimeException(e); // Will never happen
 			}
 		}
 
 		new ReconnectThread(client, connectionRetryIntervalSeconds, options).run();
+	}
+
+	public void send(final String topic, final String message, final IMqttActionListener callback) throws MqttPersistenceException, MqttException {
+		try {
+			client.publish(topic, message.getBytes("UTF-8"), 1, false, null, callback);
+		} catch (UnsupportedEncodingException e) {
+		}
 	}
 
 	protected static class ReconnectThread extends Thread implements IMqttActionListener {
@@ -95,7 +103,7 @@ public class MqttHandler {
 			while (!client.isConnected()) {
 				LOGGER.log(Level.WARNING, "Connecting to MQTT broker.");
 				try {
-					client.connect(options, this).waitForCompletion();
+					client.connect(options, null, this).waitForCompletion();
 				} catch (Throwable t) {
 					LOGGER.log(Level.WARNING, "Failed to connect to MQTT broker. Retrying in " + connectionRetryIntervalSeconds + " seconds.", t);
 					try {

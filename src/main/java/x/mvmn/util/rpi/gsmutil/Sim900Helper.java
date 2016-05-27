@@ -12,9 +12,10 @@ import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 
 public class Sim900Helper {
-	public static final char CTRL_Z = 0x1a;
+	public static final Character CTRL_Z = new Character((char) 0x1a);
 	public static final String DEFAULT_PORT_NAME = "/dev/ttyAMA0";
 
+	protected final String portName;
 	protected final SerialPort port;
 	protected ConcurrentLinkedQueue<String> responses = new ConcurrentLinkedQueue<String>();
 
@@ -23,6 +24,7 @@ public class Sim900Helper {
 	}
 
 	public Sim900Helper(final String portName) {
+		this.portName = portName;
 		try {
 			port = new SerialPort(portName);
 			port.openPort();
@@ -30,14 +32,20 @@ public class Sim900Helper {
 
 			Thread readThread = new Thread() {
 				public void run() {
-					String line = null;
+					String output = null;
 					while (true) {
 						try {
-							line = portRead();
+							output = portRead();
 						} catch (Exception e) {
 						}
-						if (line != null && !line.trim().isEmpty()) {
-							responses.add(line);
+						if (output != null && !output.trim().isEmpty()) {
+							for (final String line : output.split("[\n\r]+")) {
+								responses.add(line);
+								if (responses.size() > 1000) {
+									responses.poll();
+								}
+								System.out.println("<< " + portName + " << " + line.replace(CTRL_Z, '^'));
+							}
 						}
 						ThreadHelper.ensuredSleep(1000);
 					}
@@ -60,7 +68,29 @@ public class Sim900Helper {
 
 	public void portWrite(final String string) {
 		try {
-			port.writeString(string);
+			final String prefix;
+			if (port.writeString(string)) {
+				prefix = ">> ";
+			} else {
+				prefix = "xx ";
+			}
+			for (String line : string.split("[\n\r]+")) {
+				System.out.println(prefix + portName + " >> " + line.replace(CTRL_Z, '^'));
+			}
+		} catch (SerialPortException e) {
+			throw new RuntimeException(e);
+		}
+	}
+
+	public void portWriteCtrlZ() {
+		try {
+			final String prefix;
+			if (port.writeInt(0x1a)) {
+				prefix = ">> ";
+			} else {
+				prefix = "xx ";
+			}
+			System.out.println(prefix + portName + " >> CTRL+Z");
 		} catch (SerialPortException e) {
 			throw new RuntimeException(e);
 		}
@@ -75,28 +105,46 @@ public class Sim900Helper {
 	}
 
 	public void cmdAT() {
-		portWrite("AT\r");
+		portWriteCtrlZ();
+		portWrite("AT\r\n");
 	}
 
 	public void cmdSetSMSCenterNumber(final String smsCenterNumber) {
-		portWrite("AT+CSCA=\"" + smsCenterNumber + "\"\r");
+		portWriteCtrlZ();
+		portWrite("AT+CSCA=\"" + smsCenterNumber + "\"\r\n");
 	}
 
 	public void cmdSetSMSModeText() {
-		portWrite("AT+CMGF=1\r");
+		portWriteCtrlZ();
+		portWrite("AT+CMGF=1\r\n");
+	}
+
+	public void cmdSetSMSEncodingGSM() {
+		portWriteCtrlZ();
+		portWrite("AT+CSCS=\"GSM\"\r\n");
 	}
 
 	public void cmdSendSMSMessage(final String number, final String text) {
-		portWrite("AT+CMGS=\"" + number + "\"\r");
-		portWrite(text + CTRL_Z);
+		portWriteCtrlZ();
+		portWrite("AT+CMGS=\"" + number + "\"\r\n");
+		clearResponses();
+		int waitTime = 30;
+		while ((responses.size() < 1 || !pollResponses().equals(">")) && waitTime-- > 0) {
+			ThreadHelper.ensuredSleep(100);
+		}
+		portWrite(text);
+		portWriteCtrlZ();
+		portWrite("\r\n");
 	}
 
 	public void cmdDial(final String number) {
-		portWrite("ATD" + number + "\r");
+		portWriteCtrlZ();
+		portWrite("ATD" + number + "\r\n");
 	}
 
 	public boolean ensureOn() {
 		boolean result = false;
+		clearResponses();
 		cmdAT();
 		ThreadHelper.ensuredSleep(3000);
 		String line = pollResponses();
@@ -106,7 +154,7 @@ public class Sim900Helper {
 			ThreadHelper.ensuredSleep(3000);
 			line = pollResponses();
 		}
-		if (line.replaceAll("[\n\r]", "").trim().equals("AT OK")) {
+		if (line.equals("AT") && pollResponses().equals("OK")) {
 			result = true;
 		}
 		return result;
