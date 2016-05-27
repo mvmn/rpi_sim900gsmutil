@@ -44,7 +44,7 @@ public class Sim900Helper {
 								if (responses.size() > 1000) {
 									responses.poll();
 								}
-								System.out.println("<< " + portName + " << " + line.replace(CTRL_Z, '^'));
+								System.out.println("<< " + portName + " << " + line.replaceAll("" + CTRL_Z, ""));
 							}
 						}
 						ThreadHelper.ensuredSleep(1000);

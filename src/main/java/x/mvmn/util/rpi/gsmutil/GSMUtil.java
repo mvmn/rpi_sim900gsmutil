@@ -51,6 +51,33 @@ public class GSMUtil implements MqttMessageListener {
 	public void startService() throws MqttSecurityException, MqttException {
 		mqttHandler.connect();
 		mqttHandler.subscribe(properties.getProperty("mqtt.subscribe.topic"));
+		int retries = 3;
+		boolean done = false;
+		do {
+			done = sim900helper.ensureOn();
+		} while (retries-- > 0 && !done);
+
+		sim900helper.clearResponses();
+		sim900helper.cmdAT();
+		int waitTime = 5;
+		while (sim900helper.responses.size() < 2 && waitTime-- > 0) {
+			ThreadHelper.ensuredSleep(1000);
+		}
+		ThreadHelper.ensuredSleep(500);
+		sim900helper.clearResponses();
+		sim900helper.cmdSetSMSModeText();
+		waitTime = 5;
+		while (sim900helper.responses.size() < 2 && waitTime-- > 0) {
+			ThreadHelper.ensuredSleep(1000);
+		}
+		ThreadHelper.ensuredSleep(500);
+		sim900helper.clearResponses();
+		sim900helper.cmdSetSMSEncodingGSM();
+		waitTime = 5;
+		while (sim900helper.responses.size() < 2 && waitTime-- > 0) {
+			ThreadHelper.ensuredSleep(1000);
+		}
+		ThreadHelper.ensuredSleep(500);
 	}
 
 	public void messageArrived(String topic, byte[] body) {
@@ -77,29 +104,8 @@ public class GSMUtil implements MqttMessageListener {
 					final String text = bodyStr.substring(separatorIndex + 1);
 
 					sim900helper.clearResponses();
-					sim900helper.cmdAT();
-					int waitTime = 5;
-					while (sim900helper.responses.size() < 2 && waitTime-- > 0) {
-						ThreadHelper.ensuredSleep(1000);
-					}
-					ThreadHelper.ensuredSleep(500);
-					sim900helper.clearResponses();
-					sim900helper.cmdSetSMSModeText();
-					waitTime = 5;
-					while (sim900helper.responses.size() < 2 && waitTime-- > 0) {
-						ThreadHelper.ensuredSleep(1000);
-					}
-					ThreadHelper.ensuredSleep(500);
-					sim900helper.clearResponses();
-					sim900helper.cmdSetSMSEncodingGSM();
-					waitTime = 5;
-					while (sim900helper.responses.size() < 2 && waitTime-- > 0) {
-						ThreadHelper.ensuredSleep(1000);
-					}
-					ThreadHelper.ensuredSleep(500);
-					sim900helper.clearResponses();
 					sim900helper.cmdSendSMSMessage(number, text);
-					waitTime = 5;
+					int waitTime = 5;
 					while (sim900helper.responses.size() < 1 && waitTime-- > 0) {
 						ThreadHelper.ensuredSleep(1000);
 					}
