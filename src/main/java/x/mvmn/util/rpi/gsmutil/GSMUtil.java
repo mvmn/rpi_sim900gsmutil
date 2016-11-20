@@ -99,7 +99,7 @@ public class GSMUtil implements MqttMessageListener {
 			Map<String, Object> payload = (Map<String, Object>) GSON.fromJson(new String(body, "UTF-8"), Map.class);
 
 			// int idx = Integer.parseInt(payload.get("idx").toString());
-			int nvalue = Integer.parseInt(payload.get("nvalue").toString());
+			int nvalue = (int) Double.parseDouble(payload.get("nvalue").toString());
 			String name = payload.get("name").toString();
 
 			if (name.equals(properties.getProperty("sensor.sim900.name"))) {
