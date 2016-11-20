@@ -147,7 +147,8 @@ public class GSMUtil implements MqttMessageListener {
 						result.append(line).append(" ");
 					}
 				} while (line != null);
-				String balanceResult = result.toString().replaceAll(".*Na rahunku\\s+([\\d\\\\.]+)\\s+grn.*", "$1");
+				System.out.println("Parsing message: " + result);
+				String balanceResult = result.toString().replaceAll("\n+", "").replaceAll(".*Na rahunku\\s+([\\d\\\\.]+)\\s+grn.*", "$1");
 				float balance = -1f;
 				try {
 					balance = Float.parseFloat(balanceResult);
